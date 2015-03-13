@@ -1,0 +1,46 @@
+package main
+
+import (
+	"database/sql"
+	"fmt"
+	_ "github.com/go-sql-driver/mysql"
+	"log"
+	"net/http"
+)
+
+func main() {
+	http.Handle("/", http.FileServer(http.Dir("./")))
+	http.HandleFunc("/home", homeHandler)
+	http.HandleFunc("/login", loginHandler)
+
+	err := http.ListenAndServe(":80", nil)
+	if err != nil {
+		log.Fatal("ListenAndServe: ", err)
+	}
+}
+
+func homeHandler(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("HelloWorld"))
+	fmt.Println("有人调用了home路由")
+}
+
+func loginHandler(w http.ResponseWriter, r *http.Request) {
+	userName := r.PostFormValue("username")
+	passWord := r.PostFormValue("password")
+	fmt.Println("登陆用户名是：" + userName)
+	fmt.Println("登陆密码是：" + passWord)
+
+	db, _ := sql.Open("mysql", "root:root@/android?charset=utf8")
+	stmt, _ := db.Prepare(("select uid from users where username=? and password=?"))
+	rows, _ := stmt.Query(userName, passWord)
+
+	uid := 0
+	for rows.Next() {
+		rows.Scan(&uid)
+	}
+	if uid > 0 {
+		w.Write([]byte("success"))
+	} else {
+		w.Write([]byte("fail"))
+	}
+}
