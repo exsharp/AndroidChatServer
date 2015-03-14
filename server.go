@@ -50,6 +50,8 @@ func Server(conn net.Conn) {
 		switch sour.TYPE {
 		case "LOGIN":
 			loginHandler(conn, sour)
+		case "REGISTER":
+			registerHandler(conn, sour)
 		case "MSG":
 			msgHandler(conn, sour)
 		case "ADDFRIEND":
@@ -66,6 +68,28 @@ func Server(conn net.Conn) {
 		}
 	}
 }
+func registerHandler(conn net.Conn, sour JSON) {
+	var send JSON
+	send.TYPE = "REGISTER"
+	acount := sour.CONTENT[0]
+	password := sour.CONTENT[1]
+	email := sour.CONTENT[2]
+
+	db, _ := sql.Open("mysql", "root:root@/android?chatset=utf-8")
+	defer db.Close()
+	rows, _ := db.Query("select uid from users where acount=?", acount)
+	uid := 0
+	for rows.Next() {
+		rows.Scan(&uid)
+	}
+	if uid > 0 {
+		send.CONTENT = append(send.CONTENT, "exist")
+	} else {
+		db.Exec("insert into users(acount,password,email) values(?,?,?)", acount, password, email)
+		send.CONTENT = append(send.CONTENT, "success")
+	}
+}
+
 func msgHandler(conn net.Conn, sour JSON) {
 	var send JSON
 	t := time.Now().Format("01-02\t15:04:05")
@@ -100,19 +124,19 @@ func rcvMsg(conn net.Conn) (JSON, error) {
 
 func loginHandler(conn net.Conn, sour JSON) {
 	var send JSON
-	userName := sour.CONTENT[0]
+	account := sour.CONTENT[0]
 	passWord := sour.CONTENT[1]
 
 	db, _ := sql.Open("mysql", "root:root@/android?charset=utf8")
-	rows, _ := db.Query("select uid,password from users where username=?", userName)
+	rows, _ := db.Query("select uid,password from users where username=?", account)
 	uid := 0
 	pw := ""
 	for rows.Next() {
 		rows.Scan(&uid, &pw)
 	}
 	send.TYPE = "LOGIN"
-	if passWord == pw && userName != "" {
-		online[conn] = userName
+	if passWord == pw && account != "" {
+		online[conn] = account
 		send.CONTENT = append(send.CONTENT, "登陆成功")
 		//friendListHandler(conn)
 	} else {
