@@ -105,7 +105,7 @@ func loginHandler(conn net.Conn, sour JSON) {
 	passWord := sour.CONTENT[1]
 
 	db, _ := sql.Open("mysql", "root:root@/android?charset=utf8")
-	rows, _ := db.Query("select uid,password from users where username=?", account)
+	rows, _ := db.Query("select uid,password from users where account=?", account)
 	uid := 0
 	pw := ""
 	for rows.Next() {
@@ -129,11 +129,12 @@ func loginHandler(conn net.Conn, sour JSON) {
 func friendListHandler(conn net.Conn) {
 
 	var send JSON
-	send.TYPE = "FRIENDLIST"
+	send.TYPE = "FRIEND_LIST"
 	send.CONTENT = append(send.CONTENT, "")
 
 	db, _ := sql.Open("mysql", "root:root@/android?charset=utf8")
-	rows, _ := db.Query("select firend,grouping from relation where account=? order by grouporder,firend", online[conn])
+	rows, _ := db.Query("select friend,grouping from relation where account=? order by grouporder,friend", online[conn])
+	//fmt.Println(online[conn])
 	defer db.Close()
 
 	var friend string
@@ -149,7 +150,7 @@ func friendListHandler(conn net.Conn) {
 		}
 	}
 	fmt.Println(send)
-	//sendMsg(conn, send)
+	sendMsg(conn, send)
 }
 
 func msgHandler(conn net.Conn, sour JSON) {
