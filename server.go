@@ -81,7 +81,7 @@ func registerHandler(conn net.Conn, sour JSON) {
 	showError(err)
 	defer db.Close()
 
-	rows, err1 := db.Query("select uid from users where acount=?", account)
+	rows, err1 := db.Query("select uid from users where account=?", account)
 	showError(err1)
 
 	uid := 0
@@ -92,7 +92,8 @@ func registerHandler(conn net.Conn, sour JSON) {
 	if uid > 0 {
 		send.CONTENT = append(send.CONTENT, "exist")
 	} else {
-		db.Exec("insert into users(acount,password,email) values(?,?,?)", account, password, email)
+		db.Exec("insert into users(account,password,email) values(?,?,?)", account, password, email)
+		db.Exec("insert into relation(account,grouping) values(?,?)", account, "我的好友")
 		send.CONTENT = append(send.CONTENT, "success")
 	}
 	fmt.Println(send)
@@ -130,7 +131,7 @@ func friendListHandler(conn net.Conn) {
 
 	var send JSON
 	send.TYPE = "FRIEND_LIST"
-	send.CONTENT = append(send.CONTENT, "")
+	//send.CONTENT = append(send.CONTENT, "")
 
 	db, _ := sql.Open("mysql", "root:root@/android?charset=utf8")
 	rows, _ := db.Query("select friend,grouping from relation where account=? order by grouporder,friend", online[conn])
@@ -139,15 +140,22 @@ func friendListHandler(conn net.Conn) {
 
 	var friend string
 	var group string
-	temp := ""
+	//temp := ""
 	for rows.Next() {
-		temp = group
 		rows.Scan(&friend, &group)
-		if group == temp {
-			send.CONTENT = append(send.CONTENT, friend)
-		} else {
-			send.CONTENT = append(send.CONTENT, "", group, friend)
+		//temp = group
+		//if group == temp {
+		//	send.CONTENT = append(send.CONTENT, friend)
+		//} else {
+		//	send.CONTENT = append(send.CONTENT, "", group, friend)
+		//}
+		personalizedRows, _ := db.Query("select personalized from users where account=?", friend)
+		personalized := ""
+		for personalizedRows.Next() {
+			personalizedRows.Scan(&personalized)
 		}
+		personalizedRows.Close()
+		send.CONTENT = append(send.CONTENT, friend, group, personalized, "")
 	}
 	fmt.Println(send)
 	sendMsg(conn, send)
