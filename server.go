@@ -124,6 +124,7 @@ func loginHandler(conn net.Conn, sour JSON) {
 			send.CONTENT = append(send.CONTENT, "FAIL", "密码错误")
 		}
 	}
+	fmt.Println(send)
 	sendMsg(conn, send)
 }
 
@@ -161,18 +162,32 @@ func friendListHandler(conn net.Conn) {
 	sendMsg(conn, send)
 }
 
-func msgHandler(conn net.Conn, sour JSON) {
+func isAccountExistHandler(conn net.Conn, sour JSON) {
 	var send JSON
-	t := time.Now().Format("01-02\t15:04:05")
-	to := sour.CONTENT[1]
-	send.TYPE = "MSG"
-	send.CONTENT = append(send.CONTENT, sour.CONTENT[0], sour.CONTENT[1], t, sour.CONTENT[3])
-	for i := range online {
-		if to == online[i] {
-			sendMsg(i, send)
+	send.TYPE = "ISEXIST"
+	candidate := sour.CONTENT[0]
+	db, _ := sql.Open("mysql", "root:root@/android?charset=utf8")
+	defer db.Close()
+	rows, _ := db.Query("select uid from users where account=?", candidate)
+	uid := 0
+	for rows.Next() {
+		rows.Scan(&uid)
+	}
+	if uid > 0 {
+		rows, _ = db.Query("select rid from relation where account=? and friend=?", online[conn], candidate)
+		uid = 0
+		for rows.Next() {
+			rows.Scan(&uid)
 		}
-		fmt.Println(send)
-		//sendMsg(i, send)
+		if uid > 0 {
+			send.CONTENT = append(send.CONTENT, "要添加的好友已在你的好友列表")
+		} else {
+			if online[conn] == candidate {
+				send.CONTENT = append(send.CONTENT, "不能添加自己")
+			}
+		}
+	} else {
+		send.CONTENT = append(send.CONTENT, "要添加的好友不存在")
 	}
 	sendMsg(conn, send)
 }
@@ -184,13 +199,13 @@ func addfriendHandler(conn net.Conn, sour JSON) {
 	friend := sour.CONTENT[0]
 	group := sour.CONTENT[1]
 	db, _ := sql.Open("mysql", "root:root@/android?charset=utf8")
-	rows, _ := db.Query("select uid from users where username=?", friend)
+	rows, _ := db.Query("select uid from users where account=?", friend)
 	uid := 0
 	for rows.Next() {
 		rows.Scan(&uid)
 	}
 	if uid > 0 {
-		rows, _ = db.Query("select uid from friends where user=? and friend=?", user, friend)
+		rows, _ = db.Query("select uid from relation where account=? and friend=?", user, friend)
 		uid = 0
 		for rows.Next() {
 			rows.Scan(&uid)
@@ -293,6 +308,22 @@ func delgroupHandler(conn net.Conn, sour JSON) {
 		send.CONTENT = append(send.CONTENT, "删除成功")
 	}
 	friendListHandler(conn)
+	sendMsg(conn, send)
+}
+
+func msgHandler(conn net.Conn, sour JSON) {
+	var send JSON
+	t := time.Now().Format("01-02\t15:04:05")
+	to := sour.CONTENT[1]
+	send.TYPE = "MSG"
+	send.CONTENT = append(send.CONTENT, sour.CONTENT[0], sour.CONTENT[1], t, sour.CONTENT[3])
+	for i := range online {
+		if to == online[i] {
+			sendMsg(i, send)
+		}
+		fmt.Println(send)
+		//sendMsg(i, send)
+	}
 	sendMsg(conn, send)
 }
 
